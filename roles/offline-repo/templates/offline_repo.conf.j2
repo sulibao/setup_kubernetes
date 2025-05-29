@@ -1,0 +1,41 @@
+server {
+    {% if yum.offline_repo_httpsTF %}
+    
+    listen       {{ yum.offline_repo_port }} ssl http2 default_server;
+    server_name  _;
+    root {{global_data_dir}}/yum-repo;
+    ssl_certificate     /etc/nginx/cert/offline_repo.pem;
+    ssl_certificate_key /etc/nginx/cert/offline_repo-key.pem;
+    ssl_client_certificate /etc/nginx/cert/ca.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    {% else %}
+
+    listen       {{ yum.offline_repo_port }} default_server;
+    server_name  _;
+    root {{global_data_dir}}/yum-repo;
+
+    {% endif %}
+
+    location / {
+        autoindex on;
+        autoindex_exact_size off;
+        autoindex_localtime on;
+
+        {% if yum.auth_basic.enabled %}
+        satisfy any;
+        allow 127.0.0.1;
+
+        {% for host in groups['all_nodes'] %}
+        allow {{ host }};
+        {% endfor %}
+
+        deny  all;
+
+        auth_basic           "Gitee Authentication";
+        auth_basic_user_file {{ yum.auth_basic.user_file }};
+        {% endif %}
+    }
+    access_log  /var/log/nginx/access_offline_repo.log  main;
+    error_log  /var/log/nginx/error_offline_repo.log;
+}

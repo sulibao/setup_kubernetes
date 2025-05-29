@@ -1,0 +1,43 @@
+global_data_dir: /app
+yum_repo_auth: true
+offline_repo_httpsTF: true
+
+
+
+
+
+cert:
+  path: /opt/.certs
+  expiry: 175200
+  type: rsa
+  size: 2048
+  C: "CN"
+  ST: "SiChuan"
+  L: "ChengDu"
+  O: "sulibao"
+  OU: "yunwei"
+  CN: "sulibao Root CA" 
+  profile: "sulibao"
+  offline_repo:
+    CN: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+    path: "/etc/nginx/cert"
+#
+#yum:
+#  offline_repo_name: offline
+#  yum_repo_httpsTF: "{{offline_repo_httpsTF}}"
+#  yum_repo_port: 6789
+#  auth_basic:
+#    enabled: "{{yum_repo_auth}}"          # 是否启动Basic认证
+#    username: sulibao                     # 认证用户名
+#    password: sulibao123456               # 认证密码,密码不要使用特殊符号
+#    user_file: "/etc/nginx/.yum_repo" # 认证文件
+
+yum:
+  offline_repo_name: offline
+  offline_repo_httpsTF: "{{offline_repo_httpsTF}}"
+  offline_repo_port: 6789
+  auth_basic:
+    enabled: "{{yum_repo_auth}}"          # 是否启动Basic认证
+    username: sulibao                       # 认证用户名
+    password: sulibao123456        # 认证密码,密码不要使用特殊符号
+    user_file: "/etc/nginx/.offline_repo" # 认证文件

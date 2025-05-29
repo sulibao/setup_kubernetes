@@ -1,0 +1,31 @@
+---
+
+- name: Get CA certificate content
+  command:
+    cat {{ cert.path }}/ca.pem
+  run_once: true
+  register:
+    ca_cert_content
+
+- name: View CA content from ca-bundle.crt
+  shell:  "grep sulibao-Root-CA /etc/pki/tls/certs/ca-bundle.crt >/dev/null"
+  register: ca_content
+  ignore_errors: true
+
+- name: Append CA certificate notes
+  shell:  "echo -en '\n# sulibao-Root-CA' >>/etc/pki/tls/certs/ca-bundle.crt"
+  when:
+    - ca_content.rc != 0
+
+- name: Append CA certificate to the operating system
+  lineinfile:
+    dest: /etc/pki/tls/certs/ca-bundle.crt
+    line: "{{ ca_cert_content.stdout }}"
+  when:
+   - ca_content.rc != 0
+
+- name: Print information
+  debug:
+    msg: "[忽略] CA证书已添加，无需重复操作!"
+  when:
+    - ca_content.rc == 0

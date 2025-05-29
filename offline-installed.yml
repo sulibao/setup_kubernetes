@@ -1,0 +1,16 @@
+#- hosts: yum_repo
+#  tasks:
+#  - include_role:
+#      name: offline-repo
+#      tasks_from: nginx
+
+#- hosts: all_nodes
+#  roles:
+#    - offline-repo
+
+#添加CA证书
+- hosts: all_nodes
+  tasks:
+  - include_role:
+      name: ca-cert
+      tasks_from: append-to-os

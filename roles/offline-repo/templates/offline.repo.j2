@@ -1,0 +1,7 @@
+[offline]
+name={{ yum.offline_repo_name }}
+{% set protocol = "https" if yum.offline_repo_httpsTF else "http" %}
+{% set auth_part = yum.auth_basic.username + ":" + yum.auth_basic.password + "@" if yum.auth_basic.enabled else "" %}
+baseurl={{ protocol }}://{{ auth_part }}{{ offline_repo_domain }}:{{ yum.offline_repo_port }}/
+gpgcheck=0
+enabled=1

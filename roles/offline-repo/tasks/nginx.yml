@@ -1,0 +1,113 @@
+- name: selinux disabled
+  shell: "{{ item }}"
+  with_items:
+    - 'sed -i s/"SELINUX=enforcing"/"SELINUX=disabled"/g /etc/selinux/config'
+    - 'setenforce 0'
+  ignore_errors: yes
+
+- name:  stop firewalld
+  command:
+    "systemctl stop firewalld"
+  ignore_errors: yes
+
+- name: Create vhost directory
+  file:
+    path: /etc/nginx/vhost
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: open port
+  command:
+    "semanage port -a -t http_port_t  -p tcp {{ yum.offline_repo_port }}"
+  ignore_errors: yes
+
+- name: template resources
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    trim_blocks: no
+  with_items:
+    - { src: "nginx.conf.j2", dest: "/etc/nginx/nginx.conf" }
+    - { src: "offline_repo.conf.j2", dest: "/etc/nginx/vhost/offline_repo.conf" }
+    
+- name: Create cert CSR
+  template:
+    src: offline_repo-csr.json.j2
+    dest: "{{ cert.path }}/offline_repo-csr.json"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Generate SSL certificate for offline repo
+  shell:
+    cmd: "/usr/local/bin/cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile={{ cert.profile }} offline_repo-csr.json | /usr/local/bin/cfssljson -bare offline_repo"
+    chdir: "{{ cert.path }}"
+
+- name: Create nginx SSL directory
+  file: 
+    path: "{{ cert.offline_repo.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Generate basci user file
+  shell: "echo {{ yum.auth_basic.username }}:$(openssl passwd -apr1 {{ yum.auth_basic.password }}) > {{ yum.auth_basic.user_file }}"
+  when: yum.auth_basic.enabled | bool
+
+- name: Copy SSL certs for nginx
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: 0644
+    remote_src: True
+  with_items:
+    - { src: '{{ cert.path }}/offline_repo.pem', dest: '{{ cert.offline_repo.path }}/offline_repo.pem'}
+    - { src: '{{ cert.path }}/offline_repo-key.pem', dest: '{{ cert.offline_repo.path }}/offline_repo-key.pem'}
+    - { src: '{{ cert.path }}/ca.pem', dest: '{{ cert.offline_repo.path }}/ca.pem'}
+
+- name: Copy Yum Repo
+  unarchive: 
+    src: "{{ global_data_dir }}/setup_kubernetes/packages/yum-repo/x86/yum-repo.tgz"
+    dest: "{{ global_data_dir }}"
+    remote_src: true
+  when: "ansible_architecture == 'x86_64'"
+
+- name: Copy Yum Repo
+  unarchive:
+    src: "{{ global_data_dir }}/setup_kubernetes/packages/yum-repo/arm/yum-repo.tgz"
+    dest: "{{ global_data_dir }}"
+    remote_src: true
+  when: "ansible_architecture == 'aarch64'"
+  
+- name: Load Nginx image
+  shell: "{{ item }}"
+  with_items:
+    - "nerdctl load -i {{ global_data_dir }}/setup_kubernetes/image/x86/nginx.tgz"
+  when: "ansible_architecture == 'x86_64'"
+
+- name: Load Nginx image
+  shell: "{{ item }}"
+  with_items:
+    - "nerdctl load -i {{ global_data_dir }}/setup_kubernetes/image/arm/nginx.tgz"
+  when: "ansible_architecture == 'aarch64'"
+
+
+- name: delete old nginx service
+  command: nerdctl rm -f nginx
+  ignore_errors: yes
+
+- name: Docker Run nginx Service
+  command: >
+    nerdctl run -d --restart=always --name nginx 
+    -v /etc/localtime:/etc/localtime:ro
+    -v /etc/nginx/vhost/:/etc/nginx/vhost/
+    -v /etc/nginx/nginx.conf:/etc/nginx/nginx.conf
+    -v {{ global_data_dir }}/yum-repo:{{ global_data_dir }}/yum-repo 
+    -v {{ cert.offline_repo.path }}:{{ cert.offline_repo.path }}
+    -v {{ yum.auth_basic.user_file }}:{{ yum.auth_basic.user_file }}
+    -p {{ yum.offline_repo_port }}:{{ yum.offline_repo_port }} 
+    nginx
+  ignore_errors: yes

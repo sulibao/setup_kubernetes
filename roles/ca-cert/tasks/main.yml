@@ -1,0 +1,55 @@
+---
+
+- name: Create Cert Directory
+  file:
+    state: directory
+    path: "{{ cert.path }}"
+    owner: root
+    group: root
+    recurse: yes
+
+- name: Copy cfssl Tool
+  copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: 0555
+    owner: root
+    group: root
+  with_items:
+    - cfssl
+    - cfssljson
+
+- name: Write CA Config Files
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: 0644
+    owner: root
+    group: root
+  loop:
+    - { src: 'ca-config.json.j2', dest: '{{ cert.path }}/ca-config.json' }
+    - { src: 'ca-csr.json.j2', dest: '{{ cert.path }}/ca-csr.json' }
+
+- name: Check CA certificate file is exist
+  stat:
+    path: "{{ cert.path }}/ca.pem"
+  register: ca
+
+- name: Check CA key file is exist
+  stat:
+    path: "{{ cert.path }}/ca-key.pem"
+  register: ca_key
+
+- name: Generate CA certificate
+  shell:
+    cmd: /usr/local/bin/cfssl gencert -initca ca-csr.json | /usr/local/bin/cfssljson -bare ca
+    chdir: "{{ cert.path }}"
+  when:
+   - not ca.stat.exists
+   - not ca_key.stat.exists
+
+- debug:
+    msg: "cert file already exist"
+  when:
+    - ca.stat.exists
+    - ca_key.stat.exists

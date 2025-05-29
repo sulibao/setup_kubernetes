@@ -1,0 +1,9 @@
+debug          = false
+debug_full     = false
+address        = "unix:///run/containerd/containerd.sock"
+namespace      = "default"
+snapshotter    = "overlayfs"
+cgroup_manager = "cgroupfs"
+hosts_dir      = ["/etc/containerd/certs.d", "/etc/docker/certs.d"]
+experimental   = true
+data_root      = "$nerdctl_data"

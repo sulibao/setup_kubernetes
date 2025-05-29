@@ -1,0 +1,17 @@
+{
+  "CN": "sulibao-Root-CA",
+  "key": {
+    "algo": "{{ cert.type }}",
+    "size": {{ cert.size }}
+  },
+  "names": [
+    {
+      "C": "{{ cert.C }}",
+      "ST": "{{ cert.ST }}",
+      "L": "{{ cert.L }}",
+      "O": "{{ cert.O }}",
+      "OU": "{{ cert.OU }}",
+      "CN": "{{ cert.CN }}"
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+{
+   "CN": "{{ cert.offline_repo.CN }}",
+   "hosts": [
+       "127.0.0.1",
+       "{{ cert.offline_repo.CN }}"
+   ],
+   "key": {
+   "algo": "{{ cert.type }}",
+   "size": {{ cert.size }}
+   },
+   "names": [
+    {
+      "C": "{{ cert.C }}",
+      "ST": "{{ cert.ST }}",
+      "L": "{{ cert.L }}",
+      "O": "{{ cert.O }}"
+     }
+   ]
+}

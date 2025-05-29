@@ -1,0 +1,33 @@
+- name: check repolist is exties
+  shell:
+    "yum repolist |grep test |awk '{ if ($1 ==\"{{ yum.offline_repo_name }}\") { print \"Yes\" }}'"
+  register: repo_extis
+
+- name: check repo extis
+  set_fact:
+    repo_extis: "{{ repo_extis.stdout }}"
+
+- name: create yum offline repo
+  block:
+  - name: Ensure directory
+    file:
+      dest: "/etc/yum.repos.d/backup"
+      state: directory
+  - name: disabled all repo
+    shell: 
+      mv /etc/yum.repos.d/*.repo /etc/yum.repos.d/backup
+    ignore_errors: yes
+  - name: set fact
+    set_fact:
+      offline_repo_domain: "{{ groups.yum_repo[0] }}"
+  - name: copy repo config
+    template:
+      src: offline.repo.j2
+      dest: "/etc/yum.repos.d/offline.repo"
+      trim_blocks: no
+  - name: refresh yum repo
+    command:
+      "yum clean all"
+  - name: yum repolist
+    command: yum repolist {{ yum.offline_repo_name }}
+  when: not repo_extis
