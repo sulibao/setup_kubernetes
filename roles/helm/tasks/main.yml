@@ -1,0 +1,36 @@
+- name: Ensure directory
+  file:
+    path: "{{ install_dir }}/helm/"
+    state: directory
+
+- name: 安装helm (x86_64)
+  block:
+  - name: 复制helm安装包
+    unarchive:
+      src: "{{ global_data_dir }}/setup_kubernetes/packages/helm/x86/helm-v3.13.3-linux-amd64.tar.gz"
+      dest: "{{ install_dir }}/helm/"
+  - name: 放到bin目录
+    copy:
+      src: "{{ install_dir }}/helm/linux-amd64/helm"
+      dest: /usr/local/bin/helm
+      remote_src: yes
+      mode: "777"
+  when: ansible_architecture == 'x86_64'
+
+- name: 安装helm (aarch64)
+  block:
+  - name: 复制helm安装包
+    unarchive:
+      src: "{{ global_data_dir }}/setup_kubernetes/packages/helm/arm/helm-v3.13.3-linux-arm64.tar.gz"
+      dest: "{{ install_dir }}/helm/"
+  - name: 放到bin目录
+    copy:
+      src: "{{ install_dir }}/helm/linux-arm64/helm"
+      dest: /usr/local/bin/helm
+      remote_src: yes
+      mode: "777"
+  when: ansible_architecture == 'aarch64'
+
+- name: cp helm 
+  command: ln -s /usr/local/bin/helm /usr/bin/helm
+  ignore_errors: yes

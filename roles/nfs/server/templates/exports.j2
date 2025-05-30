@@ -1,0 +1,7 @@
+{% for host in groups['all_nodes'] %}
+{%if nfs.server.async %}
+{{ nfs.server.share_directory }} {{ host }}(rw,async,insecure,fsid=0,no_auth_nlm,no_subtree_check,no_root_squash,no_all_squash)
+{% else %}
+{{ nfs.server.share_directory }} {{ host }}(rw,sync,insecure,fsid=0,no_auth_nlm,no_subtree_check,no_root_squash,no_all_squash)
+{% endif %}
+{% endfor %}

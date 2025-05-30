@@ -1,0 +1,117 @@
+---
+- name: 清除系统原有内核参数
+  command: "{{ item }}"
+  with_items:
+    - cp -f /etc/sysctl.conf /tmp/sysctl.conf
+    - cp -rf /etc/sysctl.d/ /tmp/
+    - cp /dev/null /etc/sysctl.conf
+    - /bin/bash -c "rm -f /etc/sysctl.d/*"
+  ignore_errors: yes
+  when: clear_backp_sysctl | bool
+
+- name: 创建/proc/sys/net/
+  command: "modprobe br_netfilter"
+
+- name: Letting iptables see bridged traffic
+  copy:
+    src: 999-k8s.conf
+    dest: /etc/sysctl.d/999-k8s.conf
+
+- name: 刷新内核配置参数
+  shell: >
+    sysctl -p /etc/sysctl.d/999-k8s.conf
+  ignore_errors: yes
+
+- name: Install common software packages
+  yum:
+    name: ["conntrack-tools"]
+    state: installed
+    enablerepo: "{{ yum.offline_repo_name }}"
+
+- name: cp kubernetes file 
+  unarchive: 
+    src: "{{ global_data_dir }}/setup_kubernetes/packages/kubernetes/x86/kubernetes-v1.26.tgz"
+    dest: /tmp/
+    mode: 0755
+  when: "ansible_architecture == 'x86_64'"
+
+- name: cp kubernetes file
+  unarchive:
+    src: "{{ global_data_dir }}/setup_kubernetes/packages/kubernetes/arm/kubernetes-v1.26.tgz"
+    dest: /tmp/
+    mode: 0755
+  when: "ansible_architecture == 'aarch64'"
+
+- name: move containerd path
+  shell: cp -a -rf /tmp/kubernetes/* /usr/bin/
+
+- name: ln kubelet
+  command: ln -s /usr/bin/kubelet /usr/sbin/
+  ignore_errors: yes
+
+- name: 设置kubelt启动脚本
+  copy:
+    src: kubelet.service
+    dest: /usr/lib/systemd/system/kubelet.service
+
+- name: 创建kubelet 数据目录
+  file:
+    state: directory
+    path: "/usr/lib/systemd/system/kubelet.service.d/"
+    mode: 0755
+    owner: root
+    group: root
+
+- name: 设置kubeadm脚本
+  copy:
+    src: 10-kubeadm.conf
+    dest: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+ 
+- name: 创建kubelet 数据目录
+  file:
+    state: directory
+    path: "{{ kubelet.data_dir }}"
+    mode: 0700
+    owner: root
+    group: root
+
+- name: 添加kubelet配置
+  template:
+    src: kubelet.j2
+    dest: /etc/sysconfig/kubelet
+    mode: 0644
+    owner: root
+    group: root
+
+- name: kubeadm reset
+  command:
+    kubeadm reset -f
+
+- name: stop kubelet
+  service:
+    name: kubelet
+    state: stopped
+
+
+- name: 删除网络设置
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /var/lib/etcd/
+    - /var/lib/kubelet/* #
+    - /var/lib/calico/
+    - /run/calico/
+
+- name: 删除网卡
+  command: "{{ item }}"
+  with_items:
+    - ifconfig cni0 down
+    - ip link delete cni0
+  ignore_errors: yes
+
+
+- name: 设置kubelet开机启动
+  service:
+    name: kubelet
+    enabled: yes

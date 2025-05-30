@@ -1,0 +1,23 @@
+- name: Remove nfs-utils
+  yum:
+    name: ["nfs-utils"]
+    state: absent
+
+- name: Install nfs-utils
+  yum:
+    name: ["nfs-utils"]
+    state: installed
+    enablerepo: "{{ yum.offline_repo_name }}"
+
+- name: Loading sunrpc module
+  command: /usr/sbin/modprobe sunrpc
+  ignore_errors: True
+
+- name: Sets the number of sunrpc_tcp_slot_table_entries
+  sysctl:
+    name: sunrpc.tcp_slot_table_entries
+    value: '128'
+    sysctl_set: yes
+    state: present
+    reload: yes
+  ignore_errors: True

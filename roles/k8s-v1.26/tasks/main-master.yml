@@ -1,0 +1,123 @@
+- name: 收集变量
+  set_fact:
+    ip_addr: "{{ ansible_default_ipv4.address }}"
+    etcd_name: "etcd{{ ansible_play_hosts.index(inventory_hostname) }}"
+
+- name: View k8s dns from /etc/hosts
+  shell:  "grep {{ k8s_control_plane_endpoint }} /etc/hosts >/dev/null"
+  register: k8s_dns
+  ignore_errors: true
+
+- name: Append k8s dns to /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    line: "{{ groups.masters[0] }} {{ k8s_control_plane_endpoint }}"
+  when:
+   - k8s_dns.rc != 0
+
+- name: Print information
+  debug:
+    msg: "[忽略] k8s本地解析已添加，无需重复操作!"
+  when:
+    - k8s_dns.rc == 0
+
+- name: "make dir"
+  file:
+    dest: "/root/kubernetes"
+    state: directory
+
+- name: Copy config
+  template:
+    src: "{{ item }}.j2"
+    dest: "/root/kubernetes/{{ item }}"
+  with_items:
+  - kubeadm-init.yaml
+
+- name: shutdown swap
+  shell:
+    "{{ item }}"
+  ignore_errors: yes
+  with_items:
+  - swapoff -a
+
+- name: kubeadm reset
+  command:
+    kubeadm reset -f
+  notify:
+    - restart kubelet
+
+- name: 初始化k8s-master节点
+  command:
+    argv:
+      - kubeadm 
+      - init 
+      - --config
+      - /root/kubernetes/kubeadm-init.yaml
+
+- name: 配置kubectl
+  file:
+    dest: /root/.kube/
+    state: directory
+
+- name: 配置kubectl自动补全
+  lineinfile:
+    path: ~/.bashrc
+    line: 'source <(kubectl completion bash)'
+    create: yes
+    insertafter: EOF
+  ignore_errors: true
+
+- name: 复制配置
+  command:
+    cp /etc/kubernetes/admin.conf /root/.kube/config
+
+- name: 等待重启api-server
+  wait_for:
+    timeout: 10
+
+- name: 创建目录k8s/yaml
+  file:
+    dest: "{{ install_dir }}/k8s/yaml"
+    state: directory
+
+- name: Copy yaml
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ install_dir }}/k8s/yaml/{{ item }}"
+  with_items:
+  - metrics-server.yaml
+  - calico.yaml
+  - weave.yaml
+
+- name: wait node ready
+  shell: kubectl get node | grep Ready | wc -l
+  register: node_ready
+  until: node_ready.stdout == "1"
+  delay: 10
+  retries: 20
+  failed_when: false
+
+- name: Deploy network
+  command:
+    "kubectl apply -f {{ install_dir }}/k8s/yaml/{{ k8s_network | default('calico') }}.yaml"
+
+
+- name: Deploy metrics
+  command:
+    "kubectl apply -f {{ install_dir }}/k8s/yaml/metrics-server.yaml"
+
+- name: 压缩kubernetes目录
+  command:
+     "tar -zcvf /root/kubernetes.tar.gz /etc/kubernetes/"
+
+- name: Specifying a path directly
+  fetch:
+    src: /root/kubernetes.tar.gz
+    dest: ./files/kubernetes/kubernetes.tar.gz
+    flat: yes
+
+- name: Append k8s dns to /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    regexp: "{{ groups.masters[0] }} {{ k8s_control_plane_endpoint }}"
+    line: "127.0.0.1 {{ k8s_control_plane_endpoint }}"

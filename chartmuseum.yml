@@ -1,0 +1,4 @@
+- hosts: yum_repo
+  tasks:
+  - include_role:
+      name: helm-chartmuseum

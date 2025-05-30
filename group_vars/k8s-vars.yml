@@ -1,0 +1,224 @@
+---
+#k8s配置
+k8s_version: 1.26.15
+local_registry: "{{ runtime_registry }}/gitee-prod"
+
+#istio配置
+local_istio_registry: "{{ runtime_registry }}/gitee-prod"
+access_log_path: "/dev/stdout"
+
+#dkron配置
+dkron:
+  ops_dkron:
+    image: gitee-prod/gitee-ops-dkron/debian
+    tag: 46
+  mc:
+    image: gitee-prod/gitee-ops-dkron/mc
+    tag: 31
+  tdsql:
+    image: gitee-prod/gitee-ops-dkron/tdsql
+    tag: arm64_42
+
+#monitor配置
+monitor_namespace: monitor
+##chart配置
+prometheus:
+  version: 8.15.7
+  name: kube-prometheus
+  value: prometheus-values.yaml
+grafana:
+  version: 9.2.6
+  name: grafana
+  value: grafana-values.yaml
+  user: admin
+  password: P@ssw0rd@2013
+prom2one:
+  version: 0.1.0
+  name: prom2one
+  value: prom2one-values.yaml
+node_problem_detector:
+  version: 2.3.14
+  name: node-problem-detector
+  value: node-problem-detector-values.yaml
+
+##镜像配置
+monitor:
+  grafana:
+    image: gitee-prod/bitnami/grafana
+    tag: 10.1.4-debian-11-r6
+  prometheus:
+    image: gitee-prod/bitnami/prometheus
+    tag: 2.46.0-debian-11-r5
+  prometheus_operator:
+    image: gitee-prod/bitnami/prometheus-operator
+    tag: 0.67.1-debian-11-r0
+  kube_state_metrics:
+    image: gitee-prod/bitnami/kube-state-metrics
+    tag: 2.9.2-debian-11-r52
+  node_exporter:
+    image: gitee-prod/bitnami/node-exporter
+    tag: 1.6.1-debian-11-r8
+  alertmanager:
+    image: gitee-prod/bitnami/alertmanager
+    tag: 0.25.0-debian-11-r171
+  blackbox_exporter:
+    image: gitee-prod/bitnami/blackbox-exporter
+    tag: 0.24.0-debian-11-r76
+  pushgateway:
+    image: gitee-prod/prom/pushgateway
+    tag: v1.6.2
+  node_problem_detector:
+    image: gitee-prod/node-problem-detector/node-problem-detector
+    tag: v0.8.19
+
+#journal配置
+journal_namespace: journal
+##chart配置
+elasticsearch:
+  version: 8.5.1
+  name: gitee-elasticsearch
+  value: elasticsearch-values.yaml
+  username: elastic
+  password: P@ssw0rd@2013
+filebeat:
+  version: 8.5.1
+  name: filebeat
+  value: filebeat-values.yaml
+kibana:
+  version: 8.5.1
+  name: kibana
+  value: kibana-values.yaml
+kubernetes_event_exporter:
+  version: 3.2.15
+  name: kubernetes-event-exporter
+  value: kubernetes-event-exporter-values.yaml
+
+
+##镜像配置
+journal:
+  es_service_name: elasticsearch-master
+  elasticsearch:
+    image: gitee-prod/elasticsearch/elasticsearch
+    tag: 8.11.4
+  es_ikplugin:
+    image: gitee-prod/elasticsearch/elasticsearch-ik-pinyin-plugin
+    tag: v8.11.4
+  filebeat:
+    image: gitee-prod/journal/beats/filebeat
+    tag: 8.11.4
+  kibana:
+    image: gitee-prod/journal/kibana
+    tag: 8.11.4
+  kube_eventer:
+    image: gitee-prod/bitnami/kubernetes-event-exporter
+    tag: 1.7.0
+
+#apm配置
+skywalking:
+  version: 4.0.0-osc
+  name: skywalking
+  value: skywalking-values.yaml
+  oap:
+    image: gitee-prod/skywalking/skywalking-oap-server
+    tag: 8.9.1
+  ui:
+    image: gitee-prod/skywalking/skywalking-ui
+    tag: 8.9.1
+  elasticsearch:
+    image: gitee-prod/journal/elasticsearch
+    tag: 7.13.4
+  busybox:
+    image: gitee-prod/skywalking/busybox
+    tag: 1.30.0
+  skywalking_java_agent:
+    image: gitee-prod/skywalking/skywalking-java-agent
+    tag: 8.9.0
+
+#local-storage配置
+image_local_path_provisioner: gitee-prod/rancher/local-path-provisioner:v0.0.19
+image_local_path_busybox: gitee-prod/skywalking/busybox:1.30.0
+#nfs配置
+image_nfs_client_provisioner: gitee-prod/sig-storage/nfs-subdir-external-provisioner:v4.0.2
+
+########################################  打包清单 ########################################
+##################  chart清单 ##################
+# 产品发布chart仓库地址，打包时使用，用于拉取chart包到本地
+chart_package_registry: osc-chart-package
+#在线部署时chart仓库地址(仅使用osc-nexus仓库时有效)
+chart_package_registry_url: https://osc.gitee.work/repo/api/helm/gitee-helm-prod
+##########
+monitor_charts:
+- ["{{ prometheus.name }}", "{{ prometheus.version }}"]
+- ["{{ grafana.name }}", "{{ grafana.version }}"]
+- ["{{ prom2one.name }}", "{{ prom2one.version }}"]
+- ["{{ node_problem_detector.name }}", "{{ node_problem_detector.version }}"]
+journal_charts:
+- ["{{ elasticsearch.name }}", "{{ elasticsearch.version }}"]
+- ["{{ filebeat.name }}", "{{ filebeat.version }}"]
+- ["{{ kibana.name }}", "{{ kibana.version }}"]
+- ["{{ kubernetes_event_exporter.name }}", "{{ kubernetes_event_exporter.version }}"]
+skywalking_charts:
+- ["{{ skywalking.name }}", "{{ skywalking.version }}"]
+##################  chart清单 ##################
+
+##################  镜像清单 ###################
+# 产品发布镜像库地址，打包时使用，用于拉取所需镜像到本地
+release_registry: docker-hub.gitee.work
+##########
+k8s_images:
+- ["{{ release_registry }}", "gitee-prod/calico/cni:v3.25.0"]
+- ["{{ release_registry }}", "gitee-prod/calico/kube-controllers:v3.25.0"]
+- ["{{ release_registry }}", "gitee-prod/calico/node:v3.25.0"]
+- ["{{ release_registry }}", "gitee-prod/coredns:v1.9.3"]
+- ["{{ release_registry }}", "gitee-prod/etcd:3.5.10-0"]
+- ["{{ release_registry }}", "gitee-prod/kube-apiserver:v1.26.15"]
+- ["{{ release_registry }}", "gitee-prod/kube-controller-manager:v1.26.15"]
+- ["{{ release_registry }}", "gitee-prod/kube-proxy:v1.26.15"]
+- ["{{ release_registry }}", "gitee-prod/kube-scheduler:v1.26.15"]
+- ["{{ release_registry }}", "gitee-prod/metrics-server:v0.7.1"]
+- ["{{ release_registry }}", "gitee-prod/pause:3.9"]
+
+istio_images:
+- ["{{ release_registry }}", "gitee-prod/pilot:1.19.8"]
+- ["{{ release_registry }}", "gitee-prod/proxyv2:1.19.8"]
+
+storage_images:
+- ["{{ release_registry }}", "{{ image_nfs_client_provisioner }}"]
+- ["{{ release_registry }}", "{{ image_local_path_provisioner }}"]
+- ["{{ release_registry }}", "{{ image_local_path_busybox }}"]
+- ["{{ release_registry }}", "gitee-prod/base-image/curl:7.88.1"]
+
+monitor_images:
+- ["{{ release_registry }}", "{{ monitor.grafana.image }}:{{ monitor.grafana.tag }}"]
+- ["{{ release_registry }}", "{{ monitor.prometheus.image }}:{{ monitor.prometheus.tag }}"]
+- ["{{ release_registry }}", "{{ monitor.prometheus_operator.image }}:{{ monitor.prometheus_operator.tag }}"]
+- ["{{ release_registry }}", "{{ monitor.kube_state_metrics.image }}:{{ monitor.kube_state_metrics.tag }}"]
+- ["{{ release_registry }}", "{{ monitor.node_exporter.image }}:{{ monitor.node_exporter.tag }}"]
+- ["{{ release_registry }}", "{{ monitor.alertmanager.image }}:{{ monitor.alertmanager.tag }}"]
+- ["{{ release_registry }}", "{{ monitor.blackbox_exporter.image }}:{{ monitor.blackbox_exporter.tag }}"]
+- ["{{ release_registry }}", "{{ monitor.pushgateway.image }}:{{ monitor.pushgateway.tag }}"]
+- ["{{ release_registry }}", "{{ monitor.node_problem_detector.image }}:{{ monitor.node_problem_detector.tag }}"]
+
+journal_images:
+- ["{{ release_registry }}", "{{ journal.elasticsearch.image }}:{{ journal.elasticsearch.tag }}"]
+- ["{{ release_registry }}", "{{ journal.es_ikplugin.image }}:{{ journal.es_ikplugin.tag }}"]
+- ["{{ release_registry }}", "{{ journal.filebeat.image }}:{{ journal.filebeat.tag }}"]
+- ["{{ release_registry }}", "{{ journal.kibana.image }}:{{ journal.kibana.tag }}"]
+- ["{{ release_registry }}", "{{ journal.kube_eventer.image }}:{{ journal.kube_eventer.tag }}"]
+
+skywalking_images:
+- ["{{ release_registry }}", "{{ skywalking.oap.image }}:{{ skywalking.oap.tag }}"]
+- ["{{ release_registry }}", "{{ skywalking.ui.image }}:{{ skywalking.ui.tag }}"]
+- ["{{ release_registry }}", "{{ skywalking.elasticsearch.image }}:{{ skywalking.elasticsearch.tag }}"]
+- ["{{ release_registry }}", "{{ skywalking.busybox.image }}:{{ skywalking.busybox.tag }}"]
+- ["{{ release_registry }}", "{{ skywalking.skywalking_java_agent.image }}:{{ skywalking.skywalking_java_agent.tag }}"]
+
+dkron_images:
+- ["{{ release_registry }}", "{{ dkron.ops_dkron.image }}:{{ dkron.ops_dkron.tag }}"]
+- ["{{ release_registry }}", "{{ dkron.mc.image }}:{{dkron.mc.tag }}"]
+- ["{{ release_registry }}", "{{ dkron.tdsql.image }}:{{dkron.tdsql.tag }}"]
+
+other_images:
+- ["{{ release_registry }}", "gitee-prod/op-tools:ubuntu_24.04"]
+##################  镜像清单 ###################
+########################################  打包清单 ########################################

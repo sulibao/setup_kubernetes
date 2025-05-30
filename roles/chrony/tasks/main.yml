@@ -1,0 +1,21 @@
+- name: 安装chronyd服务
+  yum:
+    name: chrony
+    state: present
+
+- name: 停止chronyd服务
+  service:
+    name: chronyd
+    state: stopped
+
+- name: 配置客户端时间同步
+  template:
+    src: chrony.conf.j2
+    dest: /etc/chrony.conf
+    mode: 0644
+
+- name: 启动chronyd服务
+  service:
+    name: chronyd
+    state: started
+    enabled: yes

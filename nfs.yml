@@ -1,0 +1,14 @@
+- name: Install nfs-server
+  hosts: nfs_server
+  roles:
+    - nfs/server
+
+- name: Install nfs-utils for all servers
+  hosts: nodes
+  roles:
+    - nfs/client
+
+- name: Create k8s storageclass
+  hosts: kubectl
+  roles:
+    - nfs/k8s-storageclass

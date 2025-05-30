@@ -1,0 +1,46 @@
+- hosts: all_nodes
+  tasks:
+  - name: Detect containerd
+    stat:
+      path: /run/containerd/containerd.sock
+    register: containerd_sock
+  - name: Check containerd
+    debug:
+      msg: "containerd exsits: {{ containerd_sock.stat.exists }}"
+  - import_role:
+      name: containerd
+    when: not containerd_sock.stat.exists
+  - include_role:
+      name: k8s-v1.26
+      tasks_from: common
+
+- hosts: nodes
+  tasks:
+  - include_role:
+      name: lvscare
+    when: lvscare_enable
+
+- hosts: masters
+  tasks:
+  - include_role:
+      name: k8s-v1.26
+      tasks_from: main-master
+  - command: "kubectl taint nodes --all node-role.kubernetes.io/control-plane-"
+    when: k8s_master_untaint
+  - include_role:
+      name: helm
+
+- hosts: nodes
+  tasks:
+  - include_role:
+      name: k8s-v1.26
+      tasks_from: node
+
+- hosts: all_nodes
+  tasks:
+  - name: Ensure dir
+    file:
+      path: "/etc/pki/tls/cert-back"
+      state: directory
+  - name: create backup of tls-cert
+    shell: "cp /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem /etc/pki/tls/cert-back/tls-ca-bundle.pem"

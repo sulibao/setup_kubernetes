@@ -1,0 +1,4 @@
+- name: Create sc local-path
+  hosts: kubectl
+  roles:
+    - local-storage

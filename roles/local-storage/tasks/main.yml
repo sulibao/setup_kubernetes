@@ -1,0 +1,32 @@
+- name: Ensure dir
+  file:
+    dest: "{{ install_dir }}/local-storage/"
+    state: directory
+
+- name: Copy values
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ install_dir }}/local-storage/{{ item }}"
+  with_items:
+  - local-storage.yaml
+
+- command: >
+    kubectl create ns local-path
+  ignore_errors: yes
+
+# 创建secret
+- command: >
+    kubectl -n local-path  create secret docker-registry {{ k8s_secret_name }} --docker-server={{ runtime_registry }} --docker-username='{{ runtime_registry_username }}' --docker-password='{{ runtime_registry_password }}'
+  ignore_errors: yes
+  when: k8s_create_secret
+# 将secret添加到default serviceaccount
+- command: >
+    kubectl -n local-path patch sa default -p '{"imagePullSecrets":[{"name": "{{ k8s_secret_name }}"}]}'
+
+
+- name: Install
+  command: "{{ item }}"
+  with_items:
+   - kubectl apply -f local-storage.yaml 
+  args:
+    chdir: "{{ install_dir }}/local-storage/"

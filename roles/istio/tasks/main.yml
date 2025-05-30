@@ -1,0 +1,73 @@
+- name: Get all master nodes
+  shell: |
+    kubectl get nodes -l 'node-role.kubernetes.io/control-plane=' --no-headers -o custom-columns=NAME:.metadata.name
+  register: master_nodes
+
+- name: Debug master nodes list
+  debug:
+    var: master_nodes.stdout_lines  
+
+- name: Add label to each master node
+  shell: |
+    kubectl label nodes {{ item }} istio.ingressgateway=true --overwrite
+  with_items: "{{ master_nodes.stdout_lines }}"
+  register: label_results
+
+- name: "Delete Istio if exists"
+  command: istioctl uninstall --revision 1-19-8 -y
+  ignore_errors: yes
+
+- name: "Delete Istio namespace if exists"
+  command: kubectl delete ns istio-system
+  ignore_errors: yes
+
+- name: "Create Istio namespace"
+  command: kubectl create ns istio-system
+  ignore_errors: yes
+
+- name: Create directory for Istio packages
+  file:
+    dest: "{{ install_dir }}/istio/package/"
+    state: directory
+
+- name: Copy and extract Istio package
+  unarchive:
+    src: "{{ global_data_dir }}/setup_kubernetes/packages/istio/x86/istio-1.19.8-linux-x86_64.tar.gz"
+    dest: "{{ install_dir }}/istio/package/"
+  when: "ansible_architecture == 'x86_64'"
+
+- name: Copy and extract Istio package
+  unarchive:
+    src: "{{ global_data_dir }}/setup_kubernetes/packages/istio/arm/istio-1.19.8-linux-aarch64.tar.gz"
+    dest: "{{ install_dir }}/istio/package/"
+  when: "ansible_architecture == 'aarch64'"
+
+- name: Remove existing istioctl binary
+  command: rm -rf /usr/local/bin/istioctl
+  ignore_errors: yes
+
+- name: Copy istioctl to /usr/local/bin/
+  command: cp ./istio-1.19.8/bin/istioctl /usr/local/bin/
+  args:
+    chdir: "{{ install_dir }}/istio/package/"
+  ignore_errors: yes
+
+- name: Generate IstioOperator YAML file
+  template:
+    src: "istio-operator.yaml.j2"
+    dest: "{{ install_dir }}/istio/istio-operator.yaml"
+
+- name: Install Istio using istioctl
+  shell: istioctl install -f istio-operator.yaml -y
+  args:
+    chdir: "{{ install_dir }}/istio/"
+  ignore_errors: yes
+
+- name: Generate Istio gzip configuration YAML file
+  template:
+    src: "istio-gzip.yaml.j2"
+    dest: "{{ install_dir }}/istio/istio-gzip.yaml"
+
+- name: Apply Istio gzip compression configuration
+  command: kubectl apply -f {{ install_dir }}/istio/istio-gzip.yaml
+  ignore_errors: yes

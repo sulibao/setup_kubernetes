@@ -1,9 +1,20 @@
 global_data_dir: /app
 yum_repo_auth: true
 offline_repo_httpsTF: true
+chrony_server: 0.cn.pool.ntp.org
+runtime_registry: registry.cn-chengdu.aliyuncs.com/su03
+install_dir: "{{global_data_dir}}/deploy"
 
+containerd:
+  data_dir: "{{global_data_dir}}/containerd"
+clear_backp_sysctl: true
+k8s_control_plane_endpoint: kubernetes.sulibao.local
 
-
+istio_registry: "{{ runtime_registry }}"
+access_log_path: "/dev/stdout"
+chartmuseum_port: 38080
+chartmuseum_data_dir: "{{global_data_dir}}/chartmuseum"
+ipv6_disabled: true
 
 
 cert:
@@ -21,23 +32,58 @@ cert:
   offline_repo:
     CN: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
     path: "/etc/nginx/cert"
-#
-#yum:
-#  offline_repo_name: offline
-#  yum_repo_httpsTF: "{{offline_repo_httpsTF}}"
-#  yum_repo_port: 6789
-#  auth_basic:
-#    enabled: "{{yum_repo_auth}}"          # 是否启动Basic认证
-#    username: sulibao                     # 认证用户名
-#    password: sulibao123456               # 认证密码,密码不要使用特殊符号
-#    user_file: "/etc/nginx/.yum_repo" # 认证文件
-
 yum:
   offline_repo_name: offline
-  offline_repo_httpsTF: "{{offline_repo_httpsTF}}"
+  offline_repo_httpsTF: "{{ offline_repo_httpsTF }}"
   offline_repo_port: 6789
   auth_basic:
-    enabled: "{{yum_repo_auth}}"          # 是否启动Basic认证
+    enabled: "{{ yum_repo_auth }}"          # 是否启动Basic认证
     username: sulibao                       # 认证用户名
     password: sulibao123456        # 认证密码,密码不要使用特殊符号
     user_file: "/etc/nginx/.offline_repo" # 认证文件
+
+kubelet:
+  data_dir: "{{ global_data_dir }}/kubelet"        # Kubelet 数据目录，默认为/var/lib/kubelet
+  nodefs_available: 10%          # 当 kubelet 相关存储空间不足时开始驱逐 Pod
+  memory_available: 1Gi          # 节点内存不够时开始驱逐 Pod
+  kubectl_cpu_reserved: 500m     # 为kubelet预留多少CPU资源
+  kubectl_memory_reserved: 2Gi   # 为kubelet预留多少内存资源
+  system_cpu_reserved: 500m      # 为系统预留多少CPU资源
+  system_memory_reserved: 1Gi    # 为系统预留多少内存资源
+  ephemeral_storage: 1Gi         # 预留多少短暂存储资源
+  housekeeping_interval: 30      # 驱逐监测间隔,默认10秒
+  #new_node_passwd: "{{new_node_passwd}}"  #新增node的服务器密码
+etcd:
+  data_dir: "{{ global_data_dir }}/etcd-data"
+lvscare_enable: true
+k8s_version: 1.26.15
+k8s_master_untaint: yes
+
+nfs:
+  namespace: nfs
+  server:
+    # NFS启动进程数量(缺省为：8)
+    process_number: 16
+    # NFS异步开关，建议开启
+    async: true
+    # NFS服务共享目录
+    share_directory: "{{global_data_dir}}/nfs-fileshare"
+  client:
+    # NFS挂载版本(可选参数：4.1 | 4.0 | 3)
+    mount_ver: 4.1
+    # NFS挂载参数
+    mount_opts:
+    - noresvport
+    - noatime
+
+nfs_server: local
+nfs_path: /
+image_nfs_client_provisioner: nfs-subdir-external-provisioner:v4.0.2
+image_local_path_provisioner: local-path-provisioner:v0.0.19
+local_path: "{{global_data_dir}}/local-path-storage"
+image_local_path_busybox: busybox:1.30.0
+k8s_create_secret: yes
+k8s_secret_name: aliyun
+runtime_registry_username: aliyun7839305233
+runtime_registry_password: SLBaliyundocker317418
+

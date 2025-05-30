@@ -1,0 +1,59 @@
+- name:  stop firewalld
+  service:
+    name: firewalld
+    state: stopped
+  ignore_errors: yes
+
+- name: Set SELinux in disabled mode
+  shell:
+    "{{ item }}"
+  ignore_errors: yes
+  with_items:
+  - setenforce 0
+  - sed -i 's/^SELINUX=enforcing$/SELINUX=disabled/' /etc/selinux/config
+  - swapoff -a
+  - sed -i 's/.*swap.*/#&/' /etc/fstab
+  
+- name: cp containerd file 
+  unarchive: 
+    src: "{{ global_data_dir }}/setup_kubernetes/packages/containerd/x86/containerd-1.7.6.tgz"
+    dest: /tmp/
+    mode: 0755
+  when: "ansible_architecture == 'x86_64'"
+
+- name: cp containerd file
+  unarchive:
+    src: "{{ global_data_dir }}/setup_kubernetes/packages/containerd/arm/containerd-1.7.6.tgz"
+    dest: /tmp/
+    mode: 0755
+  when: "ansible_architecture == 'aarch64'"
+
+- name: move containerd path
+  shell: cp -a -rf /tmp/containerd/* /
+
+# 定义 containerd config
+- name: mkdir -p /etc/<nerdctl/containerd>
+  file:
+    dest: "{{ item }}"
+    state: directory
+  with_items:
+    - "/etc/containerd"
+    - "/etc/nerdctl"
+
+- name: Config containerd config
+  template:
+    src: containerd-config.toml.j2
+    dest: /etc/containerd/config.toml
+  notify: restart containerd
+
+- name: config nerdctl
+  template:
+    src: nerdctl.toml.j2
+    dest: /etc/nerdctl/nerdctl.toml
+
+# 重启 conntainerd
+- name: start containerd
+  service:
+    name: containerd
+    enabled: yes
+    state: started

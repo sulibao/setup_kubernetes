@@ -1,0 +1,10 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: managed-nfs-storage
+provisioner: k8s-sigs.io/nfs-subdir-external-provisioner # or choose another name, must match deployment's env PROVISIONER_NAME'
+mountOptions:
+  - vers={{ nfs.client.mount_ver }}
+parameters:
+  mountOptions: "vers=4.1,noresvport,noatimevers={{ nfs.client.mount_ver }},{% for opt in nfs.client.mount_opts %}{{ opt }}{% if not loop.last %},{% endif %}{% endfor %}"
+  archiveOnDelete: "true" #archiveOnDelete定义为false时，删除NFS Server中对应的目录，为true则保留；

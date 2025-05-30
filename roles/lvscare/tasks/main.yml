@@ -1,0 +1,33 @@
+- name: 创建目录
+  file:
+    dest: "{{ install_dir }}/lvscare/package/"
+    state: directory
+
+- name: unarchive lvscare
+  unarchive:
+    src: "lvscare_4.0.0_linux_{{ ansible_architecture }}.tar.gz"
+    dest: "{{ install_dir }}/lvscare/package/"
+
+- name: "remove lvscare"
+  command: "rm -rf  /usr/local/bin/lvscare"
+  ignore_errors: yes
+
+- name: "copy lvscare"
+  command: "cp ./lvscare  /usr/local/bin/ "
+  ignore_errors: yes
+  args:
+    chdir: "{{ install_dir }}/lvscare/package/"
+
+- name: 设置 lvscare 启动脚本
+  template:
+    src: lvscare.service.j2
+    dest: /usr/lib/systemd/system/lvscare.service
+    mode: 0644
+    owner: root
+    group: root
+
+- name: start lvscare
+  service:
+    name: lvscare
+    enabled: yes
+    state: started

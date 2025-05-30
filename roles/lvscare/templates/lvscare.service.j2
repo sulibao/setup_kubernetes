@@ -1,0 +1,15 @@
+[Unit]
+Description=lvscare
+After=network.target
+After=network-online.target
+Wants=network-online.target
+[Service]
+LimitNOFILE=1024000
+LimitNPROC=1024000
+LimitCORE=infinity
+LimitMEMLOCK=infinity
+ExecStart=/usr/local/bin/lvscare care --vs {{groups.vip[0]}}:6443 {% for host in groups.masters + groups.other_master %}--rs {{host}}:6443 {% endfor -%} --interval 5
+Restart=on-failure
+KillMode=process
+[Install]
+WantedBy=multi-user.target

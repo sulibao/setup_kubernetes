@@ -1,0 +1,53 @@
+- name: View k8s dns from /etc/hosts
+  shell:  "grep {{ k8s_control_plane_endpoint }} /etc/hosts >/dev/null"
+  register: k8s_dns
+  ignore_errors: true
+
+- name: Append k8s dns to /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    line: "{{ groups.vip[0] }} {{ k8s_control_plane_endpoint }}"
+  when:
+   - k8s_dns.rc != 0
+   
+- name: Create join token
+  command:
+    kubeadm token create --print-join-command
+  delegate_to: "{{ groups.masters[0] }}"
+  run_once: yes
+  register:
+    k8s_join_command_output
+
+- name: 获取已在集群里的节点
+  command: kubectl get node -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}'
+  delegate_to: "{{ groups.masters[0] }}"
+  run_once: yes
+  register:
+    nodes_output
+
+- set_fact:
+    k8s_join_command: "{{ k8s_join_command_output.stdout }}"
+    nodes: "{{ nodes_output.stdout.split(' ') }}"
+
+- debug:
+    msg: "{{ k8s_join_command }}"
+  
+- name: 加入集群
+  command:
+    "{{ k8s_join_command }}"
+
+- name: "sysctl -w vm.max_map_count=262144"
+  command: 
+    sysctl -w vm.max_map_count=262144
+
+- name: "sysctl -w  net.bridge.bridge-nf-call-iptables=1"
+  command:
+    sysctl -w net.bridge.bridge-nf-call-iptables=1
+    
+- name: "echo vm.max_map_count=262144 >> /etc/sysctl.conf"
+  command: 
+    echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+
+- name: "echo net.bridge.bridge-nf-call-iptables=1 >> /etc/sysctl.conf"
+  command:
+    echo "net.bridge.bridge-nf-call-iptables=1" >> /etc/sysctl.conf

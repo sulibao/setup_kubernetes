@@ -1,0 +1,27 @@
+- name: install libseccomp for x86
+  block:
+  - name: copy libseccomp
+    copy:
+      src: "{{ global_data_dir }}/setup_kubernetes/packages/containerd/x86/libseccomp-2.5.2-1.el8.x86_64.rpm"
+      dest: /home/libseccomp-2.5.2-1.el8.x86_64.rpm
+  - name: install libseccomp
+    shell: "rpm -ivh libseccomp-2.5.2-1.el8.x86_64.rpm"
+    args:
+      chdir: /home
+    become: true
+    ignore_errors: yes
+  when: "ansible_architecture == 'x86_64'"
+
+- name: install libseccomp for arm
+  block:
+  - name: copy libseccomp
+    copy:
+      src: "{{ global_data_dir }}/setup_kubernetes/packages/containerd/arm64/libseccomp-2.5.2-1.el8.aarch64.rpm"
+      dest: /home/libseccomp-2.5.2-1.el8.aarch64.rpm
+  - name: install libseccomp
+    shell: "rpm -ivh libseccomp-2.5.2-1.el8.aarch64.rpm"
+    args:
+      chdir: /home
+    become: true
+    ignore_errors: yes
+  when: "ansible_architecture == 'aarch64'"

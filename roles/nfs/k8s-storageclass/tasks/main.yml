@@ -1,0 +1,58 @@
+- set_fact:
+    files:
+      - nfs-rbac.yml
+      - nfs-provisioner.yml
+      - nfs-storageclass.yml
+      - test-pvc.yml
+
+# 如果nfs_server变量设为'local'，则使用本地的nfs-server
+- set_fact:
+    nfs_server: "{{ groups.nfs_server[0] }}"
+  when:
+    nfs_server == "local"
+
+- debug:
+    msg: "Using NFS Server: {{ nfs_server }}"
+
+- name: deploy files
+  debug:
+    msg: "{{ files }}"
+
+- name: Ensure directory
+  file:
+    dest: "{{ install_dir }}/k8s/yaml"
+    state: directory
+
+- name: copy files
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ install_dir }}/k8s/yaml/{{ item }}"
+  loop:
+    "{{ files }}"
+
+- command: >
+    kubectl create ns {{ nfs.namespace }}
+  ignore_errors: yes
+
+# 创建secret
+- command: >
+    kubectl -n {{ nfs.namespace }} create secret docker-registry {{ k8s_secret_name }} --docker-server={{ runtime_registry }} --docker-username='{{ runtime_registry_username }}' --docker-password='{{ runtime_registry_password }}'
+  when: k8s_create_secret
+  ignore_errors: yes
+
+# 将secret添加到default serviceaccount
+- command: >
+    kubectl -n {{ nfs.namespace }} patch sa default -p '{"imagePullSecrets":[{"name": "{{ k8s_secret_name }}"}]}'
+  ignore_errors: yes
+
+- command:
+    "kubectl apply -f {{ item }}"
+  args:
+    chdir:
+      "{{ install_dir }}/k8s/yaml"
+  loop:
+    "{{ files }}"
+
+- name: Set managed-nfs-storage to default storageclass
+  command: >
+    kubectl patch storageclass managed-nfs-storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'

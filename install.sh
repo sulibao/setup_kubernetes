@@ -1,26 +1,23 @@
 #!/bin/bash
 set -e
 export path=`pwd`
-export containerd_data="/app/containerd"
-export nerdctl_data="/app/nerdctl"
+export install_ha=false
+export install_nfs=true
+export install_local_path=true
+export global_data_dir=$(awk -F': ' '/global_data_dir:/ {print $2}' ./group_vars/all.yml)
+export containerd_data="$global_data_dir/containerd"
+export nerdctl_data="$global_data_dir/nerdctl"
 export image_registry="registry.cn-chengdu.aliyuncs.com/su03"
 export ansible_log_dir="$path/log"
-export ansible_image_url_x86="registry.cn-chengdu.aliyuncs.com/su03/ansible:latest"
-export ansible_image_url_arm="registry.cn-chengdu.aliyuncs.com/su03/ansible-arm:latest"
+export ansible_image_url_x86="$image_registry/ansible:latest"
+export ansible_image_url_arm="$image_registry/ansible-arm:latest"
 export ssh_pass="sulibao"
-export global_data_dir=$(awk -F': ' '/global_data_dir:/ {print $2}' ./group_vars/all.yml)
-export target_yum_repo_x86="$path/packages/yum-repo/x86/yum-repo.tgz"
-export target_yum_repo_arm="$path/packages/yum-repo/arm/yum-repo.tgz"
-export yum_repo_url_x86="https://sulibao.oss-cn-chengdu.aliyuncs.com/yum-repo/amd/yum-repo.tgz"
-export yum_repo_url_arm="https://sulibao.oss-cn-chengdu.aliyuncs.com/yum-repo/arm/yum-repo.tgz"
-export nginx_image_url_x86="https://sulibao.oss-cn-chengdu.aliyuncs.com/nginx-image/amd/nginx.tgz"
-export nginx_image_url_arm="https://sulibao.oss-cn-chengdu.aliyuncs.com/nginx-image/arm/nginx.tgz"
-export target_nginx_image_x86="$path/image/x86/nginx.tgz"
-export target_nginx_image_arm="$path/image/arm/nginx.tgz"
 export target_containerd_file_x86="$path/packages/containerd/x86/containerd-x86.tgz"
-export target_containerd_file_arm="$path/packages/containerd/arm64/containerd-arm.tgz"
-export containerd_url_x86="https://sulibao.oss-cn-chengdu.aliyuncs.com/containerd/amd/containerd-x86.tgz"
-export containerd_url_arm="https://sulibao.oss-cn-chengdu.aliyuncs.com/containerd/arm/containerd-arm.tgz"
+export target_containerd_file_arm="$path/packages/containerd/arm/containerd-arm.tgz"
+export packages_url_x86="https://sulibao.oss-cn-chengdu.aliyuncs.com/k8s-packages/packages_x86.tgz"
+export packages_file_x86="$path/packages_x86.tgz"
+export packages_url_arm="https://sulibao.oss-cn-chengdu.aliyuncs.com/k8s-packages/packages_arm.tgz"
+export packages_file_arm="$path/packages_arm.tgz"
 
 function check_arch() {
   if [ -f /etc/redhat-release ]; then
@@ -35,23 +32,12 @@ function check_arch() {
   then
     ARCH="x86"
     echo -e  "The operating system is $OS,the architecture is X86."
-    mkdir -p {$ansible_log_dir,$nginx_imagedir_x86}
-    if [ -f "$target_yum_repo_x86" ]; then
-      echo "The file $target_yum_repo_x86 already exists, skip download."
+    mkdir -p $ansible_log_dir
+    if [ -f "$packages_file_x86" ]; then
+      echo "The file $packages_file_x86 already exists, skip download."
     else
-      mkdir -p "$(dirname "$target_yum_repo_x86")"
-      curl -C - -o "$target_yum_repo_x86" "$yum_repo_url_x86"
-      if [ $? -eq 0 ]; then
-        echo "The file downloaded successfully."
-      else
-        echo "Failed to download the file."
-      fi
-    fi
-    if [ -f "$target_nginx_image_x86" ]; then
-      echo "The file $target_nginx_image_x86 already exists, skip download."
-    else
-      mkdir -p "$(dirname "$target_nginx_image_x86")"
-      curl -C - -o "$target_nginx_image_x86" "$nginx_image_url_x86"
+      curl -C - -o "$packages_file_x86" "$packages_url_x86"
+      tar -xf "$packages_file_x86" -C "$path"
       if [ $? -eq 0 ]; then
         echo "The file downloaded successfully."
       else
@@ -62,23 +48,12 @@ function check_arch() {
   then
     ARCH="arm64"
     echo -e  "The operating system is $OS,the architecture is Arm."
-    mkdir -p {$ansible_log_dir,$nginx_imagedir_arm}
-    if [ -f "$target_yum_repo_arm" ]; then
-      echo "The file $target_yum_repo_arm already exists, skip download."
+    mkdir -p $ansible_log_dir
+    if [ -f "$packages_file_arm" ]; then
+      echo "The file $packages_file_arm already exists, skip download."
     else
-      mkdir -p "$(dirname "$target_yum_repo_arm")"
-      curl -C - -o "$target_yum_repo_arm" "$yum_repo_url_arm"
-      if [ $? -eq 0 ]; then
-        echo "The file downloaded successfully."
-      else
-        echo "Failed to download the file."
-      fi
-    fi
-    if [ -f "$target_nginx_image_arm" ]; then
-      echo "The file $target_nginx_image_arm already exists, skip download."
-    else
-      mkdir -p "$(dirname "$target_nginx_image_arm")"
-      curl -C - -o "$target_nginx_image_arm" "$nginx_image_url_arm"
+      curl -C - -o "$packages_file_arm" "$packages_url_arm"
+      tar -xf "$packages_file_x86" -C "$path"
       if [ $? -eq 0 ]; then
         echo "The file downloaded successfully."
       else
@@ -104,33 +79,11 @@ function install_containerd() {
   echo -e "Installing containerd."
   if [[ "$ARCH" == "x86" ]]
   then
-    if [ -f "$target_containerd_file_x86" ]; then
-      echo "The file $target_containerd_file_x86 already exists, skip download."
-    else
-      mkdir -p "$(dirname "$target_containerd_file_x86")"
-      curl -C - -o "$target_containerd_file_x86" "$containerd_url_x86"
-      tar -xf "$target_containerd_file_x86" -C "$path/packages/containerd/x86/"
-      if [ $? -eq 0 ]; then
-        echo "The file downloaded successfully."
-      else
-        echo "Failed to download the file."
-      fi
-    fi 
+    tar -xf $target_containerd_file_x86 -C $path/packages/containerd/x86/ --strip-components=1
     export CONTAINERD_PACKAGE=$path/packages/containerd/x86/containerd-1.7.6.tgz
     export LIBSECCOMP_PACKAGE=$path/packages/containerd/x86/libseccomp-2.5.2-1.el8.x86_64.rpm
   else
-    if [ -f "$target_containerd_file_arm" ]; then
-      echo "The file $target_containerd_file_arm already exists, skip download."
-    else
-      mkdir -p "$(dirname "$target_containerd_file_arm")"
-      curl -C - -o "$target_containerd_file_arm" "$containerd_url_arm"
-      tar -xf "$target_containerd_file_arm" -C "$path/packages/containerd/arm64/"
-      if [ $? -eq 0 ]; then
-        echo "The file downloaded successfully."
-      else
-        echo "Failed to download the file."
-      fi
-    fi
+    tar -xf $target_containerd_file_arm -C $path/packages/containerd/arm/ --strip-components=1
     export CONTAINERD_PACKAGE=$path/packages/containerd/arm64/containerd-1.7.6.tgz
     export LIBSECCOMP_PACKAGE=$path/packages/containerd/arm64/libseccomp-2.5.2-1.el8.aarch64.rpm
   fi
@@ -218,8 +171,68 @@ function copy_cert() {
 
 function run_offline_repo() {
   echo -e "Install offline yum repository"
-  nerdctl exec -i ansible_sulibao /bin/sh -c "cd $global_data_dir/setup_kubernetes/ && ansible-playbook offline-installed.yml"
+  nerdctl exec -i ansible_sulibao /bin/sh -c "cd $global_data_dir/setup_kubernetes/ && ansible-playbook yum-repo.yml"
   echo -e "Install offline yum repository"
+}
+
+function run_chrony() {
+  echo -e "Install Chrony Time Synchronization Service"
+  nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook chrony.yml"
+  echo -e "Installed Chrony Time Synchronization Service"
+}
+
+function ensure_kubernetes() {
+  echo -e "Check the status of kubernetes"
+  if test -z "$(kubectl get node  | grep Ready)"; then
+    echo "Kubernetes is not ready go to install kubernetes"
+    install_kubernetes
+  fi
+}
+
+function install_kubernetes() {
+  echo -e "Installing kubernetes"
+  if [[ "$install_ha" == "true" ]]
+  then
+    nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook  runtime-k8s-v1.26-ha.yml"
+  else
+    nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook  runtime-k8s-v1.26.yml"
+  fi
+  echo -e "Installed kubernetes"
+}
+
+function install_istio() {
+  echo -e "Installing istio"
+  nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook  istio.yml"
+  echo -e "Installed istio"
+}
+
+function install_chartmuseum() {
+  echo -e "Installing helm"
+  nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook  chartmuseum.yml"
+  echo -e "Installed helm"
+}
+
+function install_nfs() {
+  if [[ "$install_nfs" == "true" ]]
+  then
+    echo -e "Install NFS server"
+    nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook nfs.yml"
+    echo -e "Install NFS server"
+  else
+    echo -e "Skip install NFS"
+  fi
+}
+
+function install_local_path() {
+  if [[ "$install_local_path" == "true" ]]
+  then
+    echo -e "Install local storage"
+    nerdctl exec -i ansible_sulibao /bin/sh -c "cd $global_data_dir/setup_kubernetes/ && ansible-playbook ./local-path.yml"
+    echo -e "Install local storage"
+  else
+    echo -e "Skip install local storage"
+  fi
+
 }
 
 function main() {
@@ -229,8 +242,13 @@ function main() {
   #create_ssh_key
   #copy_ssh_key 
   #copy_cert
-  run_offline_repo
-  
+  #run_offline_repo
+  #run_chrony  
+  #ensure_kubernetes
+  #install_istio
+  #install_chartmuseum
+  #install_nfs
+  #install_local_path
 }
 
 main

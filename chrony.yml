@@ -1,0 +1,11 @@
+- name: install libseccomp for nodes
+  hosts: all_nodes
+  tasks:
+  - include_role:
+      name: chrony
+      tasks_from: libseccomp 
+
+- name: start chrony 
+  hosts: all_nodes
+  roles:
+    - chrony

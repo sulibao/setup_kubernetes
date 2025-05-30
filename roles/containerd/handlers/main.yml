@@ -1,0 +1,9 @@
+- name: restart containerd
+  service:
+    name: containerd
+    state: restarted
+
+- name: 设置containerd开机启动
+  service:
+    name: containerd
+    enabled: yes

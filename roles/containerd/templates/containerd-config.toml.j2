@@ -3,7 +3,7 @@ imports = []
 oom_score = 0
 plugin_dir = ""
 required_plugins = []
-root = "$containerd_data"
+root = "{{ global_data_dir }}/containerd"
 state = "/run/containerd"
 temp = ""
 version = 2
@@ -58,11 +58,11 @@ version = 2
     enable_unprivileged_ports = false
     ignore_image_defined_volumes = false
     image_pull_progress_timeout = "1m0s"
-    max_concurrent_downloads = 3
+    max_concurrent_downloads = 20
     max_container_log_line_size = 16384
     netns_mounts_under_state_dir = false
     restrict_oom_score_adj = false
-    sandbox_image = "$image_registry/pause:3.9"
+    sandbox_image = "{{ runtime_registry }}/pause:3.9"
     selinux_category_range = 1024
     stats_collect_period = 10
     stream_idle_timeout = "4h0m0s"
@@ -105,7 +105,9 @@ version = 2
         snapshotter = ""
 
         [plugins."io.containerd.grpc.v1.cri".containerd.default_runtime.options]
-
+          [plugins."io.containerd.grpc.v1.cri".containerd.default_runtime.options.Log]
+            max_size = "100m"
+            max_files = "10"
       [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
 
         [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
@@ -161,7 +163,7 @@ version = 2
 
       [plugins."io.containerd.grpc.v1.cri".registry.auths]
 
-      [plugins."io.containerd.grpc.v1.cri".registry.configs."registry.cn-chengdu.aliyuncs.com".auth]
+      [plugins."io.containerd.grpc.v1.cri".registry.configs."registry.cn-chengdu.aliyuncs.com/su03".auth]
          username = "aliyun7839305233"
          password = "SLBaliyundocker317418"
          

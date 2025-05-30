@@ -1,0 +1,61 @@
+---
+
+- name: Remove nfs-utils
+  yum:
+    name: ["nfs-utils"]
+    state: absent
+
+- name: Install nfs-utils
+  yum:
+    name: ["nfs-utils"]
+    state: installed
+    enablerepo: "{{ yum.offline_repo_name }}"
+  notify: restart nfs-server
+  ignore_errors: yes
+
+- name: Rebuild initramfs boot
+  command: dracut -v -f
+  when:  ipv6_disabled | bool
+
+- name: Ensure NFS share directory
+  file:
+    path: "{{ nfs.server.share_directory }}"
+    state: directory
+    recurse: yes
+    owner: root
+    group: root
+    mode: 0777
+
+- name: Configure shared NFS directories
+  template:
+    src: exports.j2
+    dest: /etc/exports
+  notify: restart nfs-server
+
+- name: Modify nfs server processes
+  lineinfile:
+    path: /etc/sysconfig/nfs
+    regexp: '^(#*)RPCNFSDCOUNT=(.*)$'
+    line: 'RPCNFSDCOUNT={{ nfs.server.process_number }}'
+    backrefs: yes
+  notify: restart nfs-server
+  ignore_errors: true
+
+- name: copy nfs-iptables.sh
+  template:
+    src: nfs-iptables.sh.j2
+    dest: /usr/local/bin/nfs-iptables.sh
+    mode: 0755
+
+- name: copy nfs-iptables.service
+  copy:
+    src: nfs-iptables.service
+    dest: /etc/systemd/system/nfs-iptables.service
+    mode: 0644
+
+
+- name: start nfs-iptables
+  service:
+    name: nfs-iptables
+    enabled: yes
+    state: started

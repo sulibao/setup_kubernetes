@@ -1,0 +1,34 @@
+---
+- name: Load registry image
+  command:
+    "nerdctl load -i {{ global_data_dir }}/setup_kubernetes/packages/helm/chartmuseum/x86/{{ item }}"
+  loop:
+    - chartmuseum.tar.gz
+  when: ansible_architecture == 'x86_64'
+
+- name: Load registry image
+  command:
+    "nerdctl load -i {{ global_data_dir }}/setup_kubernetes/packages/helm/chartmuseum/arm/{{ item }}"
+  loop:
+    - chartmuseum.tar.gz
+  when: ansible_architecture == 'aarch64'
+
+- name: Delete chartmuseum container if exists
+  shell:
+    "nerdctl stop chartmuseum || true && docker rm chartmuseum || true"
+
+- name: Start a chartmuseum container
+  command: >
+    nerdctl run -d \
+    --restart=always \
+    -p {{ chartmuseum_port }}:8080 \
+    --name chartmuseum \
+    -e DEBUG=1 \
+    -e STORAGE=local \
+    -e STORAGE_LOCAL_ROOTDIR=/charts \
+    -v {{ chartmuseum_data_dir }}:/charts \
+    chartmuseum/chartmuseum:latest
+
+- name: helm add local repo
+  command: >
+    helm repo add local-chartmuseum http://localhost:{{ chartmuseum_port }}

@@ -85,13 +85,13 @@
 - name: Load Nginx image
   shell: "{{ item }}"
   with_items:
-    - "nerdctl load -i {{ global_data_dir }}/setup_kubernetes/image/x86/nginx.tgz"
+    - "nerdctl load -i {{ global_data_dir }}/setup_kubernetes/packages/nginx/x86/nginx.tgz"
   when: "ansible_architecture == 'x86_64'"
 
 - name: Load Nginx image
   shell: "{{ item }}"
   with_items:
-    - "nerdctl load -i {{ global_data_dir }}/setup_kubernetes/image/arm/nginx.tgz"
+    - "nerdctl load -i {{ global_data_dir }}/setup_kubernetes/packages/nginx/arm/nginx.tgz"
   when: "ansible_architecture == 'aarch64'"
 
 
