@@ -237,18 +237,18 @@ function install_local_path() {
 
 function main() {
   check_arch
-  #check_containerd  
-  #ensure_ansible
-  #create_ssh_key
-  #copy_ssh_key 
-  #copy_cert
-  #run_offline_repo
-  #run_chrony  
-  #ensure_kubernetes
+  check_containerd  
+  ensure_ansible
+  create_ssh_key
+  copy_ssh_key 
+  copy_cert
+  run_offline_repo
+  run_chrony  
+  ensure_kubernetes
   #install_istio
-  #install_chartmuseum
-  #install_nfs
-  #install_local_path
+  install_chartmuseum
+  install_nfs
+  install_local_path
 }
 
 main
