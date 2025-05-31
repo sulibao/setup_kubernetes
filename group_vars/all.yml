@@ -16,7 +16,6 @@ chartmuseum_port: 38080
 chartmuseum_data_dir: "{{global_data_dir}}/chartmuseum"
 ipv6_disabled: true
 
-
 cert:
   path: /opt/.certs
   expiry: 175200
@@ -86,4 +85,6 @@ k8s_create_secret: yes
 k8s_secret_name: aliyun
 runtime_registry_username: aliyun7839305233
 runtime_registry_password: SLBaliyundocker317418
-
+dashboard:
+  type: NodePort
+  nodeport: 37000

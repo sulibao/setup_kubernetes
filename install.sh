@@ -3,6 +3,7 @@ set -e
 export path=`pwd`
 export install_ha=false
 export install_nfs=true
+export install_dashboard=true
 export install_local_path=true
 export global_data_dir=$(awk -F': ' '/global_data_dir:/ {print $2}' ./group_vars/all.yml)
 export containerd_data="$global_data_dir/containerd"
@@ -200,6 +201,18 @@ function install_kubernetes() {
   echo -e "Installed kubernetes"
 }
 
+function install_dashboard() {
+  if [[ "$install_dashboard" == "true" ]]
+  then
+    echo -e "Installing dashboard"
+    nerdctl exec -i ansible_sulibao /bin/sh -c "cd $global_data_dir/setup_kubernetes/ && ansible-playbook ./dashboard.yml"
+    echo -e "Installed dashboard"
+  else
+    echo -e "Skip install dashboard"
+  fi
+
+}
+
 function install_istio() {
   echo -e "Installing istio"
   nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook  istio.yml"
@@ -232,7 +245,6 @@ function install_local_path() {
   else
     echo -e "Skip install local storage"
   fi
-
 }
 
 function main() {
@@ -245,7 +257,8 @@ function main() {
   run_offline_repo
   run_chrony  
   ensure_kubernetes
-  #install_istio
+  install_dashboard
+  install_istio
   install_chartmuseum
   install_nfs
   install_local_path

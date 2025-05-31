@@ -23,7 +23,7 @@
 
 - name: "make dir"
   file:
-    dest: "/root/kubernetes"
+    dest: "{{ global_data_dir }}/kubernetes"
     state: directory
 
 - name: Copy config

@@ -1,0 +1,23 @@
+- name: ensure dir
+  file:
+    dest: "{{ install_dir }}/dashboard"
+    state: directory
+    mode: 0755
+
+- name: template file for dashboard
+  template:
+    src: "dashboard.yaml.j2"
+    dest: "{{ install_dir }}/dashboard/dashboard.yaml"
+
+- name: apply file
+  shell: "kubectl apply -f dashboard.yaml"
+  args:
+    chdir: "{{ install_dir }}/dashboard/"
+
+- command: >
+    kubectl -n kubernetes-dashboard  create secret docker-registry {{ k8s_secret_name }} --docker-server={{ runtime_registry }} --docker-username='{{ runtime_registry_username }}' --docker-password='{{ runtime_registry_password }}'
+  ignore_errors: yes
+  when: k8s_create_secret
+# 将secret添加到default serviceaccount
+- command: >
+    kubectl -n kubernetes-dashboard patch sa default -p '{"imagePullSecrets":[{"name": "{{ k8s_secret_name }}"}]}'
