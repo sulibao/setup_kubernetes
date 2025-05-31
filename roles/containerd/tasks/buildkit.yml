@@ -1,0 +1,40 @@
+# 安装nerdctl build
+- name: install nerdctl build tool
+  block:
+    - name: ensure dir and cp bin file
+      file:
+        dest: /tmp/buildkit
+        state: directory
+
+    - name: unarchive bin file on x86
+      unarchive:
+        src: "{{ global_data_dir }}/setup_kubernetes/packages/containerd/x86/buildkit-v0.18.1.linux-amd64.tar.gz"
+        dest: /tmp/buildkit
+        mode: 0755
+      when: "ansible_architecture == 'x86_64'"
+
+    - name: unarchive bin file on arm
+      unarchive:
+        src: "{{ global_data_dir }}/setup_kubernetes/packages/containerd/arm/buildkit-v0.18.1.linux-arm64.tar.gz"
+        dest: /tmp/buildkit
+        mode: 0755
+      when: "ansible_architecture == 'aarch64'"
+
+    - name: cp bin file
+      shell: "cp -rf /tmp/buildkit/bin/* /usr/local/bin/"
+
+    - name: copy sock and service file
+      template:
+        src: "{{ item.src }}"
+        dest: "/usr/lib/systemd/system/{{ item.dest }}"
+      with_items:
+        - { src: "buildkit.socket.j2", dest: "buildkit.socket" } 
+        - { src: "buildkit.service.j2", dest: "buildkit.service" }
+  ignore_errors: yes
+
+- name: start service
+  systemd:
+    name: buildkit.service
+    state: started
+    daemon_reload: yes
+    enabled: yes

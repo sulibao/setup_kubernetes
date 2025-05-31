@@ -194,9 +194,9 @@ function install_kubernetes() {
   echo -e "Installing kubernetes"
   if [[ "$install_ha" == "true" ]]
   then
-    nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook  runtime-k8s-v1.26-ha.yml"
+    nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook  install-k8s-v1.26.15-ha.yml"
   else
-    nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook  runtime-k8s-v1.26.yml"
+    nerdctl exec -i ansible_sulibao /bin/sh -c  "cd $global_data_dir/setup_kubernetes/ && ansible-playbook  install-k8s-v1.26.15.yml"
   fi
   echo -e "Installed kubernetes"
 }
