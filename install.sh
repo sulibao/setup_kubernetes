@@ -80,19 +80,15 @@ function install_containerd() {
   echo -e "Installing containerd."
   if [[ "$ARCH" == "x86" ]]
   then
-    tar -xf $target_containerd_file_x86 -C $path/packages/containerd/x86/ --strip-components=1
     export CONTAINERD_PACKAGE=$path/packages/containerd/x86/containerd-1.7.6.tgz
     export LIBSECCOMP_PACKAGE=$path/packages/containerd/x86/libseccomp-2.5.2-1.el8.x86_64.rpm
   else
-    tar -xf $target_containerd_file_arm -C $path/packages/containerd/arm/ --strip-components=1
     export CONTAINERD_PACKAGE=$path/packages/containerd/arm64/containerd-1.7.6.tgz
     export LIBSECCOMP_PACKAGE=$path/packages/containerd/arm64/libseccomp-2.5.2-1.el8.aarch64.rpm
   fi
-
   if [[ "$OS" == "RedHat" || "$OS" == "CentOS" ]]; then
     rpm -Uvh "$LIBSECCOMP_PACKAGE" || :
   fi
-
   tar axvf "$CONTAINERD_PACKAGE" -C /tmp
   cp -arf /tmp/containerd/* /
   test -d /etc/containerd || mkdir -p /etc/containerd
