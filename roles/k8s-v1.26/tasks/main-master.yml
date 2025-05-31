@@ -113,7 +113,7 @@
 - name: Specifying a path directly
   fetch:
     src: /root/kubernetes.tar.gz
-    dest: ./files/kubernetes/kubernetes.tar.gz
+    dest: ./conf/kubernetes/kubernetes.tar.gz
     flat: yes
 
 - name: Append k8s dns to /etc/hosts
