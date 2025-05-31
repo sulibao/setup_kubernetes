@@ -64,7 +64,7 @@ function check_arch() {
 }
 
 function check_containerd() {
-  echo -e "Make sure docker is installed and running."
+  echo -e "Make sure containerd is installed and running."
   if ! [ -x "$(command -v nerdctl)" ]; then
     echo "Command nerdctl not find,will install."
     install_containerd
@@ -130,7 +130,7 @@ function pull_ansible_image() {
 
 function ensure_ansible() {
   echo -e "Checking the status of the ansible."
-  if test -z "$(docker ps -a | grep ansible_sulibao)"; then
+  if test -z "$(nerdctl ps -a | grep ansible_sulibao)"; then
     echo -e "Ansible is not running, will run."
     pull_ansible_image
     run_ansible
